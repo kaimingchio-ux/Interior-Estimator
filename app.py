@@ -122,7 +122,6 @@ with tab_est:
     if not st.session_state.quote_df.empty:
         st.subheader("📋 估價明細表")
         
-        # 顯示可編輯表格，並將 Total 欄位鎖定
         edited_quote = st.data_editor(
             st.session_state.quote_df, 
             key="q_editor", 
@@ -133,13 +132,12 @@ with tab_est:
             }
         )
         
-        # 🌟 神經接回：動態偵測變更並自動刷新總價
         try:
             new_total = (edited_quote['Qty'].astype(float) * edited_quote['Price'].astype(float)).round(0)
             if not st.session_state.quote_df['Total'].astype(float).equals(new_total) or len(st.session_state.quote_df) != len(edited_quote):
                 st.session_state.quote_df = edited_quote.copy()
                 st.session_state.quote_df['Total'] = new_total
-                st.rerun() # 一旦修改，立刻刷新畫面連動！
+                st.rerun() 
         except Exception:
             pass
             
@@ -184,7 +182,6 @@ with tab_est:
                     for row in ws[rng]:
                         for cell in row: cell.border = border_all
 
-                # 第一頁報價單
                 ws1.column_dimensions['A'].width = 15; ws1.column_dimensions['B'].width = 40
                 ws1.column_dimensions['C'].width = 10; ws1.column_dimensions['D'].width = 15
                 ws1.column_dimensions['E'].width = 15; ws1.column_dimensions['F'].width = 18
@@ -209,7 +206,6 @@ with tab_est:
                     ws1.cell(curr_r, 6, f"=C{curr_r}*E{curr_r}").number_format = '#,##0'
                     set_b(ws1, f'A{curr_r}:F{curr_r}'); curr_r += 1
                 
-                # 合計區
                 ws1.cell(curr_r, 1, "總計 Total").alignment = align_c; ws1.cell(curr_r, 1).font = f_bold; ws1.cell(curr_r, 1).fill = fill_grey
                 ws1.cell(curr_r, 6, f"=SUM(F10:F{curr_r-1})").number_format = '#,##0'; ws1.cell(curr_r, 6).font = f_bold; ws1.cell(curr_r, 6).fill = fill_grey
                 ws1.merge_cells(start_row=curr_r, start_column=1, end_row=curr_r, end_column=5); set_b(ws1, f'A{curr_r}:F{curr_r}')
@@ -225,7 +221,9 @@ with tab_est:
 
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5
 
-                # 第二頁：原生圖表
+                # ----------------------------------------------------
+                # 第二頁：原生圖表 (V110 視覺統一版)
+                # ----------------------------------------------------
                 ws2.column_dimensions['A'].width = 5; ws2.column_dimensions['B'].width = 25
                 ws2.column_dimensions['C'].width = 18; ws2.column_dimensions['D'].width = 15
                 ws2.column_dimensions['F'].width = 92
@@ -244,14 +242,34 @@ with tab_est:
                         ws2.cell(tbl_row, 4, r['%']).number_format = '0.0%'; ws2.cell(tbl_row, 4).border = border_all
                         tbl_row += 1
 
-                    # 插入原生甜甜圈圖
+                    # 🌟 插入高度客製化的原生甜甜圈圖
                     chart = DoughnutChart()
                     data = Reference(ws2, min_col=3, min_row=start_tbl, max_row=tbl_row-1)
                     labels = Reference(ws2, min_col=2, min_row=start_tbl+1, max_row=tbl_row-1)
                     chart.add_data(data, titles_from_data=True)
                     chart.set_categories(labels)
-                    chart.title = f"總預算: NT$ {total_val:,.0f}"
-                    chart.dataLabels = DataLabelList(); chart.dataLabels.showPercent = True; chart.dataLabels.showCatName = True
+                    
+                    # 1. 標題文字與網頁版統一樣式
+                    chart.title = f"總預算 NT$ {total_val:,.0f}"
+                    
+                    # 2. 移除紋理，改回現代感實心平面風格 (Style 2)
+                    chart.style = 2 
+                    
+                    # 3. 移除多餘圖例
+                    chart.legend = None
+                    
+                    # 4. 把圓的洞挖到完美比例 (55%)
+                    chart.holeSize = 55
+                    
+                    # 5. 標籤：顯示名稱與%，並設定換行符號 "\n"，外掛引導線
+                    chart.dataLabels = DataLabelList()
+                    chart.dataLabels.showPercent = True
+                    chart.dataLabels.showCatName = True
+                    chart.dataLabels.showLeaderLines = True
+                    chart.dataLabels.separator = "\n" 
+                    
+                    chart.width = 16 
+                    chart.height = 10
                     ws2.add_chart(chart, "F6")
                     
                 ws2.page_setup.paperSize = ws2.PAPERSIZE_A4; ws2.page_setup.orientation = ws2.ORIENTATION_LANDSCAPE; ws2.print_options.horizontalCentered = True
