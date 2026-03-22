@@ -27,9 +27,11 @@ st.title("夜間部設計-室內裝修估價系統")
 st.markdown("上傳各空間的『現況照』與『參考照』,讓我們系統幫你精準估價!")
 
 # ==========================================
-# 2. 自動讀取 API Key 與 鎖定 3.1 Pro 選單
+# 2. 自動讀取 API Key 與 隱藏式鎖定 3.1 Pro
 # ==========================================
-selected_model_name = None
+# 預設一個備用名稱，以防萬一
+selected_model_name = "gemini-3.1-pro-preview" 
+
 with st.sidebar:
     st.header("⚙️ 系統設定")
     try:
@@ -37,26 +39,16 @@ with st.sidebar:
         api_key = st.secrets["GEMINI_API_KEY"]
         genai.configure(api_key=api_key)
         
-        # 自動抓取 Google 伺服器上目前真正可用的模型代號 (加入 3.1 關鍵字)
-        available_models = [
-            m.name.replace('models/', '') 
-            for m in genai.list_models() 
-            if 'generateContent' in m.supported_generation_methods and ('vision' in m.name or '1.5' in m.name or 'pro' in m.name or '3.1' in m.name)
-        ]
+        # 🌟 背景全自動尋找 3.1 Pro 模型，徹底移除下拉選單！
+        for m in genai.list_models():
+            name = m.name.replace('models/', '')
+            if 'generateContent' in m.supported_generation_methods and '3.1' in name and 'pro' in name:
+                selected_model_name = name
+                break
         
+        # 顯示專業的連線狀態
         st.success("✅ 企業版授權已連線")
-        if available_models:
-            # 🌟 自動尋找 3.1-pro 作為預設選項
-            default_idx = 0
-            for i, model_name in enumerate(available_models):
-                if '3.1' in model_name and 'pro' in model_name:
-                    default_idx = i
-                    break
-            
-            # 讓選單預設直接鎖定在 Gemini 3.1 Pro
-            selected_model_name = st.selectbox("🤖 請選擇 AI 引擎", available_models, index=default_idx)
-        else:
-            st.error("⚠️ 找不到支援的 Gemini 模型")
+        st.info("🚀 系統已自動鎖定最新版 Gemini 3.1 Pro 引擎，準備就緒。")
             
     except Exception as e:
         st.error("⚠️ 未偵測到 API 金鑰，請在後台設定 Secrets。")
@@ -104,9 +96,9 @@ with tab_est:
 
     if st.button("🚀 開始 AI 估價", type="primary"):
         if not api_key or not selected_model_name: 
-            st.error("⚠️ 系統未正確連線或未選擇引擎")
+            st.error("⚠️ 系統未正確連線或找不到引擎")
         else:
-            with st.spinner(f"🧠 {selected_model_name} 引擎極速分析中..."):
+            with st.spinner("🧠 引擎極速分析中，請稍候..."):
                 try:
                     db_csv = edited_db.to_csv(index=False)
                     contents = ["設計師估價單。優先參考價格庫：\n"+db_csv, "格式：[{\"Category\": \"工種\", \"Item\": \"項目\", \"Qty\": 1, \"Unit\": \"單位\", \"Price\": 1000}]"]
@@ -255,5 +247,5 @@ with tab_est:
 
             try:
                 excel_bin = generate_styled_excel(edited_quote, summary_df)
-                st.download_button("📥 下載 A4 報價單 (已含圓餅圖)", excel_bin, f"夜間部設計報價單_{datetime.now().strftime('%Y%m%d')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
+                st.download_button("📥 下載品牌究極版報價單 (A4 列印版)", excel_bin, f"夜間部設計裝修工程報價單_{datetime.now().strftime('%Y%m%d')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
             except Exception as e: st.error(f"❌ Excel 產生失敗：{e}")
