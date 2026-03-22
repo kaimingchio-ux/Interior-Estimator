@@ -218,7 +218,7 @@ with tab_est:
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5
 
                 # ----------------------------------------------------
-                # 第二頁：完美平面甜甜圈圖 + 絕對精準標籤控制
+                # 第二頁：【穩定防當機版】原生圖二設計
                 # ----------------------------------------------------
                 ws2.column_dimensions['A'].width = 5
                 ws2.column_dimensions['B'].width = 25
@@ -250,32 +250,24 @@ with tab_est:
                     ws2.cell(tbl_row, 3, total_val).font = f_bold; ws2.cell(tbl_row, 3).fill = fill_grey; ws2.cell(tbl_row, 3).number_format = '#,##0'; ws2.cell(tbl_row, 3).alignment = align_c; ws2.cell(tbl_row, 3).border = border_all
                     ws2.cell(tbl_row, 4, 1.0).font = f_bold; ws2.cell(tbl_row, 4).fill = fill_grey; ws2.cell(tbl_row, 4).number_format = '0.0%'; ws2.cell(tbl_row, 4).alignment = align_c; ws2.cell(tbl_row, 4).border = border_all
 
+                    # 🌟 採用最安全、標準的 DoughnutChart 寫法
                     chart = DoughnutChart()
                     data = Reference(ws2, min_col=3, min_row=start_tbl, max_row=tbl_row-1)
                     labels = Reference(ws2, min_col=2, min_row=start_tbl+1, max_row=tbl_row-1)
                     chart.add_data(data, titles_from_data=True)
                     chart.set_categories(labels)
                     
-                    # 1. 樣式：回歸最乾淨的平面樣式，拒絕 3D 浮雕！
+                    # 使用預設的穩妥平面風格
                     chart.style = 2 
-                    chart.holeSize = 60 # 完美洞口比例
-                    
-                    # 2. 標題
+                    chart.holeSize = 55
                     chart.title = f"總預算: NT$ {total_val:,.0f}"
-
-                    # 3. 移除多餘圖例
-                    chart.legend = None
+                    chart.legend = None # 安全隱藏圖例
                     
-                    # 4. 🌟 終極標籤控制：強迫 Excel 乖乖聽話
+                    # 使用保證不會毀損 XML 的基礎標籤設定
                     chart.dataLabels = DataLabelList()
-                    chart.dataLabels.showCatName = True       # [開啟] 工種名稱 (如: 泥作工程)
-                    chart.dataLabels.showPercent = True       # [開啟] 百分比 (如: 8%)
-                    chart.dataLabels.showVal = False          # [關閉] 具體數字
-                    chart.dataLabels.showSerName = False      # ⛔ [強制關閉] 預估金額 (Amount)
-                    chart.dataLabels.showLegendKey = False    # ⛔ [強制關閉] 標籤旁邊的小色塊
-                    chart.dataLabels.showLeaderLines = True   # [開啟] 牽引線
-                    chart.dataLabels.separator = ", "         # 設定中間的逗號分隔
-                    chart.dataLabels.position = "bestFit"     # 🌟 [關鍵] 強迫標籤往外推擠，不要疊在圖上
+                    chart.dataLabels.showCatName = True
+                    chart.dataLabels.showPercent = True
+                    # 註：為確保穩定不當機，這裡讓 Excel 自行決定標籤的預設排版與分隔符號
 
                     chart.width = 17 
                     chart.height = 10
