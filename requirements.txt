@@ -1,0 +1,7 @@
+streamlit
+google-generativeai
+pillow
+pandas
+plotly
+openpyxl
+kaleido==0.1.0.post1
