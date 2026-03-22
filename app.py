@@ -182,7 +182,6 @@ with tab_est:
                     for row in ws[rng]:
                         for cell in row: cell.border = border_all
 
-                # 第一頁報價單
                 ws1.column_dimensions['A'].width = 15; ws1.column_dimensions['B'].width = 40
                 ws1.column_dimensions['C'].width = 10; ws1.column_dimensions['D'].width = 15
                 ws1.column_dimensions['E'].width = 15; ws1.column_dimensions['F'].width = 18
@@ -218,7 +217,7 @@ with tab_est:
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5
 
                 # ----------------------------------------------------
-                # 第二頁：原生圖表 (V116 標籤強制淨化版)
+                # 第二頁：原生圖表 (V117 標籤強制外掛版)
                 # ----------------------------------------------------
                 ws2.column_dimensions['A'].width = 5
                 ws2.column_dimensions['B'].width = 25
@@ -260,16 +259,18 @@ with tab_est:
                     chart.style = 2 
                     chart.holeSize = 55
                     chart.title = f"總預算: NT$ {total_val:,.0f}"
-                    chart.legend = None # 隱藏圖例
+                    chart.legend = None
                     
-                    # 🌟 核心淨化：強制開關標籤屬性
+                    # 🌟 核心淨化：強制開關標籤屬性，並強制推擠到外部
                     dl = DataLabelList()
-                    dl.showCatName = True       # 打開名稱 (例: 泥作工程)
-                    dl.showPercent = True       # 打開百分比 (例: 8%)
-                    dl.showVal = False          # 關閉數值
-                    dl.showSerName = False      # 強制關閉「預估金額」標題
-                    dl.showLegendKey = False    # 強制關閉色塊
-                    dl.separator = "\n"         # 用換行符號隔開，最乾淨！
+                    dl.showCatName = True
+                    dl.showPercent = True
+                    dl.showVal = False
+                    dl.showSerName = False
+                    dl.showLegendKey = False
+                    dl.showLeaderLines = True
+                    dl.separator = "\n"
+                    dl.position = "outEnd"  # 🌟 關鍵指令：強制置於外部末端 (Outside End)
                     chart.dataLabels = dl
 
                     chart.width = 17 
