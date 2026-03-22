@@ -182,7 +182,7 @@ with tab_est:
                     for row in ws[rng]:
                         for cell in row: cell.border = border_all
 
-                # 第一頁報價單
+                # 第一頁報價單 (略)
                 ws1.column_dimensions['A'].width = 15; ws1.column_dimensions['B'].width = 40
                 ws1.column_dimensions['C'].width = 10; ws1.column_dimensions['D'].width = 15
                 ws1.column_dimensions['E'].width = 15; ws1.column_dimensions['F'].width = 18
@@ -218,7 +218,7 @@ with tab_est:
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5
 
                 # ----------------------------------------------------
-                # 第二頁：完美復刻甜甜圈圖 (V112 修正版)
+                # 第二頁：完美還原圖二 (包含黑底表格 + 紋理圓環圖)
                 # ----------------------------------------------------
                 ws2.column_dimensions['A'].width = 5
                 ws2.column_dimensions['B'].width = 25
@@ -233,31 +233,47 @@ with tab_est:
                     s_data['%'] = s_data['Total'] / total_val
                     s_data = s_data.sort_values('Total', ascending=False)
                     start_tbl = 6
+                    
+                    # 🌟 加回左側表格的「黑底白字標題列」
+                    headers_ws2 = ["工項名稱 (Category)", "預估金額 (Amount)", "佔比 (Percent)"]
+                    for i, h in enumerate(headers_ws2, 2):
+                        c = ws2.cell(start_tbl, i, h)
+                        c.font = f_head
+                        c.fill = fill_black
+                        c.alignment = align_c
+                        c.border = border_all
+
                     tbl_row = start_tbl + 1
                     for _, r in s_data.iterrows():
-                        ws2.cell(tbl_row, 2, r['Category']).border = border_all
-                        ws2.cell(tbl_row, 3, r['Total']).number_format = '#,##0'; ws2.cell(tbl_row, 3).border = border_all
-                        ws2.cell(tbl_row, 4, r['%']).number_format = '0.0%'; ws2.cell(tbl_row, 4).border = border_all
+                        ws2.cell(tbl_row, 2, r['Category']).border = border_all; ws2.cell(tbl_row, 2).alignment = align_c
+                        ws2.cell(tbl_row, 3, r['Total']).number_format = '#,##0'; ws2.cell(tbl_row, 3).border = border_all; ws2.cell(tbl_row, 3).alignment = align_c
+                        ws2.cell(tbl_row, 4, r['%']).number_format = '0.0%'; ws2.cell(tbl_row, 4).border = border_all; ws2.cell(tbl_row, 4).alignment = align_c
                         tbl_row += 1
 
-                    # 🌟 核心修正：換回 DoughnutChart (圓環圖)
+                    # 🌟 加回左側表格底部的「總計列」
+                    ws2.cell(tbl_row, 2, "總計 Total").font = f_bold; ws2.cell(tbl_row, 2).fill = fill_grey; ws2.cell(tbl_row, 2).alignment = align_c; ws2.cell(tbl_row, 2).border = border_all
+                    ws2.cell(tbl_row, 3, total_val).font = f_bold; ws2.cell(tbl_row, 3).fill = fill_grey; ws2.cell(tbl_row, 3).number_format = '#,##0'; ws2.cell(tbl_row, 3).alignment = align_c; ws2.cell(tbl_row, 3).border = border_all
+                    ws2.cell(tbl_row, 4, 1.0).font = f_bold; ws2.cell(tbl_row, 4).fill = fill_grey; ws2.cell(tbl_row, 4).number_format = '0.0%'; ws2.cell(tbl_row, 4).alignment = align_c; ws2.cell(tbl_row, 4).border = border_all
+
+                    # 🌟 右側還原為「紋理甜甜圈圖 (圖二樣式)」
                     chart = DoughnutChart()
+                    # 數據範圍不包含最後的「總計列」
                     data = Reference(ws2, min_col=3, min_row=start_tbl, max_row=tbl_row-1)
                     labels = Reference(ws2, min_col=2, min_row=start_tbl+1, max_row=tbl_row-1)
                     chart.add_data(data, titles_from_data=True)
                     chart.set_categories(labels)
                     
-                    # 1. 樣式：設定平面樣式並挖出大洞 (60%)
-                    chart.style = 2 
-                    chart.holeSize = 60
+                    # 1. 樣式 26：套用圖二的斜線與網紋經典效果
+                    chart.style = 26 
+                    chart.holeSize = 65 # 放大洞口
                     
-                    # 2. 標題：放入總預算
+                    # 2. 設定圖表標題
                     chart.title = f"總預算: NT$ {total_val:,.0f}"
 
-                    # 3. 移除側邊圖例
+                    # 3. 移除側邊圖例 (像圖二一樣完全靠標籤顯示)
                     chart.legend = None
                     
-                    # 4. 🌟 標籤設定：顯示類別名稱與百分比，用逗號加空白分隔，帶引導線
+                    # 4. 標籤設定：顯示「類別, %」，並開啟引導線
                     chart.dataLabels = DataLabelList()
                     chart.dataLabels.showCatName = True
                     chart.dataLabels.showPercent = True
@@ -265,9 +281,8 @@ with tab_est:
                     chart.dataLabels.showLeaderLines = True
                     chart.dataLabels.separator = ", " 
 
-                    # 設定圖表在 F 欄的起始位置與大小
-                    chart.width = 16 
-                    chart.height = 9.5
+                    chart.width = 17 
+                    chart.height = 10
                     ws2.add_chart(chart, "F6")
                     
                 ws2.page_setup.paperSize = ws2.PAPERSIZE_A4; ws2.page_setup.orientation = ws2.ORIENTATION_LANDSCAPE; ws2.print_options.horizontalCentered = True; ws2.page_margins.top = 0.5
