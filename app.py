@@ -8,10 +8,11 @@ import plotly.express as px
 from datetime import datetime
 import os 
 
-# Excel 排版專用套件
+# Excel 排版與原生圖表專用套件
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.drawing.image import Image as OpenpyxlImage 
+from openpyxl.chart import DoughnutChart, Reference
+from openpyxl.chart.label import DataLabelList
 
 # ==========================================
 # 1. 網頁基本設定
@@ -122,7 +123,7 @@ with tab_est:
         summary_df = edited_quote.groupby('Category')['Total'].sum().reset_index()
         summary_df = summary_df[summary_df['Total'] > 0]
 
-        # 網頁端甜甜圈圖
+        # 網頁端維持美觀的 Plotly 圖表
         st.markdown("<h2 style='text-align: center;'>📊 裝潢預算構成比例圖</h2>", unsafe_allow_html=True)
         fig = px.pie(summary_df, values='Total', names='Category', hole=0.55, color_discrete_sequence=px.colors.qualitative.Pastel)
         fig.update_traces(textposition='outside', textinfo='percent+label', texttemplate='%{label}<br>%{percent}')
@@ -184,7 +185,6 @@ with tab_est:
                     ws1.cell(curr_r, 6, f"=C{curr_r}*E{curr_r}").number_format = '#,##0'
                     set_b(ws1, f'A{curr_r}:F{curr_r}'); curr_r += 1
                 
-                # 合計區塊
                 start_c = 10; end_c = curr_r - 1
                 ws1.cell(curr_r, 1, "合計 Subtotal").alignment = align_c; ws1.cell(curr_r, 1).fill = fill_grey
                 ws1.cell(curr_r, 6, f"=SUM(F{start_c}:F{end_c})").number_format = '#,##0'; ws1.cell(curr_r, 6).fill = fill_grey
@@ -210,7 +210,7 @@ with tab_est:
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.page_setup.orientation = ws1.ORIENTATION_PORTRAIT; ws1.page_setup.fitToPage = True; ws1.page_setup.fitToWidth = 1; ws1.page_setup.fitToHeight = 0; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5; ws1.page_margins.top = 0.75; ws1.page_margins.bottom = 0.75
 
                 # ----------------------------------------------------
-                # 第二頁：完美雙拼排版
+                # 第二頁：完美雙拼排版 + 🔥 超穩定 Excel 原生互動圖表
                 # ----------------------------------------------------
                 ws2.column_dimensions['A'].width = 5   
                 ws2.column_dimensions['B'].width = 25  
@@ -241,20 +241,29 @@ with tab_est:
                     ws2.cell(tbl_row, 3, total_val).font = f_bold; ws2.cell(tbl_row, 3).number_format = '#,##0'; ws2.cell(tbl_row, 3).fill = fill_grey; ws2.cell(tbl_row, 3).alignment = align_c; ws2.cell(tbl_row, 3).border = border_all
                     ws2.cell(tbl_row, 4, 1.0).font = f_bold; ws2.cell(tbl_row, 4).number_format = '0.0%'; ws2.cell(tbl_row, 4).fill = fill_grey; ws2.cell(tbl_row, 4).alignment = align_c; ws2.cell(tbl_row, 4).border = border_all
                     
-                    # 🔥 直接產生圖片，不再需要 Checkbox 判斷
-                    excel_fig = px.pie(s_data, values='Total', names='Category', hole=0.55, color_discrete_sequence=px.colors.qualitative.Pastel)
-                    excel_fig.update_traces(textposition='outside', textinfo='percent+label', texttemplate='%{label}<br>%{percent}', marker=dict(line=dict(color='#FFFFFF', width=2)))
-                    excel_fig.update_layout(
-                        paper_bgcolor='white', plot_bgcolor='white', showlegend=False, 
-                        annotations=[dict(text=f"總預算<br><span style='font-size:32px; color:#555;'><b>{total_val:,.0f}</b></span>", x=0.5, y=0.5, font_size=20, showarrow=False)],
-                        width=800, height=600, margin=dict(t=40, b=80, l=150, r=150), font=dict(family="Microsoft JhengHei")
-                    )
+                    # 🔥 神級替換：用 Openpyxl 原生圖表取代容易卡死的 Kaleido 截圖！
+                    chart = DoughnutChart()
+                    # 抓取資料範圍：C6 到 C 的最後一列 (含標題)
+                    data = Reference(ws2, min_col=3, min_row=start_tbl, max_row=tbl_row-1)
+                    # 抓取標籤範圍：B7 到 B 的最後一列
+                    labels = Reference(ws2, min_col=2, min_row=start_tbl+1, max_row=tbl_row-1)
                     
-                    try:
-                        img_bytes = excel_fig.to_image(format="png", scale=2)
-                        chart_img = OpenpyxlImage(io.BytesIO(img_bytes)); chart_img.width = 650; chart_img.height = 480
-                        ws2.add_image(chart_img, 'F6') 
-                    except Exception as e: pass
+                    chart.add_data(data, titles_from_data=True)
+                    chart.set_categories(labels)
+                    chart.title = f"總預算: NT$ {total_val:,.0f}"
+                    
+                    # 讓圖表自動顯示標籤和百分比
+                    chart.dataLabels = DataLabelList()
+                    chart.dataLabels.showPercent = True
+                    chart.dataLabels.showCatName = True
+                    
+                    # 設定圖表大小與樣式
+                    chart.width = 16 
+                    chart.height = 10
+                    chart.style = 26 
+                    
+                    # 完美放入 F6
+                    ws2.add_chart(chart, "F6")
                     
                 ws2.page_setup.paperSize = ws2.PAPERSIZE_A4; ws2.page_setup.orientation = ws2.ORIENTATION_LANDSCAPE; ws2.page_setup.fitToPage = True; ws2.page_setup.fitToWidth = 1; ws2.page_setup.fitToHeight = 1; ws2.print_options.horizontalCentered = True; ws2.page_margins.left = 0.5; ws2.page_margins.right = 0.5; ws2.page_margins.top = 0.5; ws2.page_margins.bottom = 0.5
                 
@@ -263,7 +272,6 @@ with tab_est:
                 return output.getvalue()
 
             try:
-                # 🌟 直接執行，無須傳入 Checkbox 變數
                 excel_bin = generate_styled_excel(edited_quote, summary_df)
                 st.download_button("📥 下載品牌究極版報價單 (A4 列印版)", excel_bin, f"夜間部設計裝修工程報價單_{datetime.now().strftime('%Y%m%d')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
             except Exception as e: st.error(f"❌ Excel 產生失敗：{e}")
