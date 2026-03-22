@@ -218,7 +218,7 @@ with tab_est:
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5
 
                 # ----------------------------------------------------
-                # 第二頁：【穩定防當機版】原生圖二設計
+                # 第二頁：原生圖表 (V116 標籤強制淨化版)
                 # ----------------------------------------------------
                 ws2.column_dimensions['A'].width = 5
                 ws2.column_dimensions['B'].width = 25
@@ -250,24 +250,27 @@ with tab_est:
                     ws2.cell(tbl_row, 3, total_val).font = f_bold; ws2.cell(tbl_row, 3).fill = fill_grey; ws2.cell(tbl_row, 3).number_format = '#,##0'; ws2.cell(tbl_row, 3).alignment = align_c; ws2.cell(tbl_row, 3).border = border_all
                     ws2.cell(tbl_row, 4, 1.0).font = f_bold; ws2.cell(tbl_row, 4).fill = fill_grey; ws2.cell(tbl_row, 4).number_format = '0.0%'; ws2.cell(tbl_row, 4).alignment = align_c; ws2.cell(tbl_row, 4).border = border_all
 
-                    # 🌟 採用最安全、標準的 DoughnutChart 寫法
+                    # 繪製圖表
                     chart = DoughnutChart()
                     data = Reference(ws2, min_col=3, min_row=start_tbl, max_row=tbl_row-1)
                     labels = Reference(ws2, min_col=2, min_row=start_tbl+1, max_row=tbl_row-1)
                     chart.add_data(data, titles_from_data=True)
                     chart.set_categories(labels)
                     
-                    # 使用預設的穩妥平面風格
                     chart.style = 2 
                     chart.holeSize = 55
                     chart.title = f"總預算: NT$ {total_val:,.0f}"
-                    chart.legend = None # 安全隱藏圖例
+                    chart.legend = None # 隱藏圖例
                     
-                    # 使用保證不會毀損 XML 的基礎標籤設定
-                    chart.dataLabels = DataLabelList()
-                    chart.dataLabels.showCatName = True
-                    chart.dataLabels.showPercent = True
-                    # 註：為確保穩定不當機，這裡讓 Excel 自行決定標籤的預設排版與分隔符號
+                    # 🌟 核心淨化：強制開關標籤屬性
+                    dl = DataLabelList()
+                    dl.showCatName = True       # 打開名稱 (例: 泥作工程)
+                    dl.showPercent = True       # 打開百分比 (例: 8%)
+                    dl.showVal = False          # 關閉數值
+                    dl.showSerName = False      # 強制關閉「預估金額」標題
+                    dl.showLegendKey = False    # 強制關閉色塊
+                    dl.separator = "\n"         # 用換行符號隔開，最乾淨！
+                    chart.dataLabels = dl
 
                     chart.width = 17 
                     chart.height = 10
