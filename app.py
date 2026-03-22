@@ -217,7 +217,7 @@ with tab_est:
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5
 
                 # ----------------------------------------------------
-                # 第二頁：原生圖表 (V117 標籤強制外掛版)
+                # 第二頁：最穩定防呆版圖表
                 # ----------------------------------------------------
                 ws2.column_dimensions['A'].width = 5
                 ws2.column_dimensions['B'].width = 25
@@ -249,7 +249,6 @@ with tab_est:
                     ws2.cell(tbl_row, 3, total_val).font = f_bold; ws2.cell(tbl_row, 3).fill = fill_grey; ws2.cell(tbl_row, 3).number_format = '#,##0'; ws2.cell(tbl_row, 3).alignment = align_c; ws2.cell(tbl_row, 3).border = border_all
                     ws2.cell(tbl_row, 4, 1.0).font = f_bold; ws2.cell(tbl_row, 4).fill = fill_grey; ws2.cell(tbl_row, 4).number_format = '0.0%'; ws2.cell(tbl_row, 4).alignment = align_c; ws2.cell(tbl_row, 4).border = border_all
 
-                    # 繪製圖表
                     chart = DoughnutChart()
                     data = Reference(ws2, min_col=3, min_row=start_tbl, max_row=tbl_row-1)
                     labels = Reference(ws2, min_col=2, min_row=start_tbl+1, max_row=tbl_row-1)
@@ -257,21 +256,15 @@ with tab_est:
                     chart.set_categories(labels)
                     
                     chart.style = 2 
-                    chart.holeSize = 55
+                    chart.holeSize = 60
+                    # 總預算放在標題 (最安全做法)
                     chart.title = f"總預算: NT$ {total_val:,.0f}"
-                    chart.legend = None
+                    chart.legend = None 
                     
-                    # 🌟 核心淨化：強制開關標籤屬性，並強制推擠到外部
-                    dl = DataLabelList()
-                    dl.showCatName = True
-                    dl.showPercent = True
-                    dl.showVal = False
-                    dl.showSerName = False
-                    dl.showLegendKey = False
-                    dl.showLeaderLines = True
-                    dl.separator = "\n"
-                    dl.position = "outEnd"  # 🌟 關鍵指令：強制置於外部末端 (Outside End)
-                    chart.dataLabels = dl
+                    # 🌟 極簡安全標籤設定
+                    chart.dataLabels = DataLabelList()
+                    chart.dataLabels.showCatName = True
+                    chart.dataLabels.showPercent = True
 
                     chart.width = 17 
                     chart.height = 10
