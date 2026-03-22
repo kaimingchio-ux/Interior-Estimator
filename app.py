@@ -27,20 +27,40 @@ st.title("夜間部設計-室內裝修估價系統")
 st.markdown("上傳各空間的『現況照』與『參考照』,讓我們系統幫你精準估價!")
 
 # ==========================================
-# 2. 自動讀取 API Key (Secrets 版本)
+# 2. 自動讀取 API Key 與 鎖定 3.1 Pro 選單
 # ==========================================
-# 從 Streamlit 後台 Secrets 抓取 Key
-try:
-    api_key = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=api_key)
-    # 預設使用 1.5-pro 模型，效能最穩
-    selected_model_name = "gemini-1.5-pro"
-    # 如果想在側邊欄顯示連線狀態，可以保留這個：
-    with st.sidebar:
-        st.success("✅ 企業版連線成功 (AI已就緒)")
-except Exception as e:
-    st.sidebar.error("⚠️ 未偵測到 API 金鑰，請在後台設定 Secrets。")
-    api_key = None
+selected_model_name = None
+with st.sidebar:
+    st.header("⚙️ 系統設定")
+    try:
+        # 從後台 Secrets 抓取 Key，不需要使用者輸入
+        api_key = st.secrets["GEMINI_API_KEY"]
+        genai.configure(api_key=api_key)
+        
+        # 自動抓取 Google 伺服器上目前真正可用的模型代號 (加入 3.1 關鍵字)
+        available_models = [
+            m.name.replace('models/', '') 
+            for m in genai.list_models() 
+            if 'generateContent' in m.supported_generation_methods and ('vision' in m.name or '1.5' in m.name or 'pro' in m.name or '3.1' in m.name)
+        ]
+        
+        st.success("✅ 企業版授權已連線")
+        if available_models:
+            # 🌟 自動尋找 3.1-pro 作為預設選項
+            default_idx = 0
+            for i, model_name in enumerate(available_models):
+                if '3.1' in model_name and 'pro' in model_name:
+                    default_idx = i
+                    break
+            
+            # 讓選單預設直接鎖定在 Gemini 3.1 Pro
+            selected_model_name = st.selectbox("🤖 請選擇 AI 引擎", available_models, index=default_idx)
+        else:
+            st.error("⚠️ 找不到支援的 Gemini 模型")
+            
+    except Exception as e:
+        st.error("⚠️ 未偵測到 API 金鑰，請在後台設定 Secrets。")
+        api_key = None
 
 # ==========================================
 # 3. 系統記憶體初始化
@@ -83,9 +103,10 @@ with tab_est:
             project_data.append({"name": r_name, "req": r_req, "before": [PilImage.open(img) for img in b_imgs] if b_imgs else [], "after": [PilImage.open(img) for img in a_imgs] if a_imgs else []})
 
     if st.button("🚀 開始 AI 估價", type="primary"):
-        if not api_key: st.error("⚠️ 系統未正確設定 API Key")
+        if not api_key or not selected_model_name: 
+            st.error("⚠️ 系統未正確連線或未選擇引擎")
         else:
-            with st.spinner("🧠 AI 分析中..."):
+            with st.spinner(f"🧠 {selected_model_name} 引擎極速分析中..."):
                 try:
                     db_csv = edited_db.to_csv(index=False)
                     contents = ["設計師估價單。優先參考價格庫：\n"+db_csv, "格式：[{\"Category\": \"工種\", \"Item\": \"項目\", \"Qty\": 1, \"Unit\": \"單位\", \"Price\": 1000}]"]
@@ -110,7 +131,7 @@ with tab_est:
                 except Exception as e: st.error(f"❌ 錯誤：{e}")
 
     # ==========================================
-    # 報價單顯示與下載按鈕區 (V104.0 原生圖表版邏輯)
+    # 報價單顯示與下載按鈕區
     # ==========================================
     if not st.session_state.quote_df.empty:
         st.subheader("📋 估價明細表")
@@ -156,7 +177,7 @@ with tab_est:
                     for row in ws[rng]:
                         for cell in row: cell.border = border_all
 
-                # 第一頁內容 (略過細節重複，維持原 V104 穩定邏輯)
+                # 第一頁報價單
                 ws1.column_dimensions['A'].width = 15; ws1.column_dimensions['B'].width = 40
                 ws1.column_dimensions['C'].width = 10; ws1.column_dimensions['D'].width = 15
                 ws1.column_dimensions['E'].width = 15; ws1.column_dimensions['F'].width = 18
@@ -181,10 +202,19 @@ with tab_est:
                     ws1.cell(curr_r, 6, f"=C{curr_r}*E{curr_r}").number_format = '#,##0'
                     set_b(ws1, f'A{curr_r}:F{curr_r}'); curr_r += 1
                 
-                # 合計區... (略)
+                # 合計區
                 ws1.cell(curr_r, 1, "總計 Total").alignment = align_c; ws1.cell(curr_r, 1).font = f_bold; ws1.cell(curr_r, 1).fill = fill_grey
-                ws1.cell(curr_r, 6, f"=SUM(F10:F{curr_r-1})*1.05").number_format = '#,##0'
+                ws1.cell(curr_r, 6, f"=SUM(F10:F{curr_r-1})").number_format = '#,##0'; ws1.cell(curr_r, 6).font = f_bold; ws1.cell(curr_r, 6).fill = fill_grey
                 ws1.merge_cells(start_row=curr_r, start_column=1, end_row=curr_r, end_column=5); set_b(ws1, f'A{curr_r}:F{curr_r}')
+
+                curr_r += 2
+                ws1.cell(curr_r, 1, "合作備註：\n1. 若有任何約定條款，請於簽訂本估價單時一併提出。\n2. 付款方式分為：訂金30%、工程款40%、尾款30%。\n3. 本報價單有效期限為30天。").alignment = Alignment(vertical='top', wrap_text=True)
+                ws1.merge_cells(start_row=curr_r, start_column=1, end_row=curr_r+3, end_column=6); set_b(ws1, f'A{curr_r}:F{curr_r+3}')
+
+                curr_r += 5
+                ws1.cell(curr_r, 1, "專案負責人簽章：").font = f_bold; ws1.cell(curr_r, 4, "客戶簽章：").font = f_bold
+                curr_r += 2
+                ws1.cell(curr_r, 1, "_____________________"); ws1.cell(curr_r, 4, "_____________________")
 
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5
 
