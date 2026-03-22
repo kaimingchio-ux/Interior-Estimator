@@ -20,7 +20,7 @@ from openpyxl.chart.label import DataLabelList
 st.set_page_config(
     page_title="夜間部設計-室內裝修估價系統", 
     layout="wide",
-    initial_sidebar_state="collapsed" # 確保側邊欄預設收起(若有殘留)
+    initial_sidebar_state="collapsed" 
 )
 
 LOGO_FILE = "資產 6.png"
@@ -33,24 +33,19 @@ st.markdown("上傳各空間的『現況照』與『參考照』,讓我們系統
 # ==========================================
 # 2. 隱形背景作業：自動讀取 API Key 與 鎖定 3.1 Pro
 # ==========================================
-# 預設一個備用名稱
 selected_model_name = "gemini-3.1-pro-preview" 
 api_key = None
 
 try:
-    # 從後台 Secrets 抓取 Key，完全不在畫面上顯示
     api_key = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=api_key)
     
-    # 背景全自動尋找 3.1 Pro 模型
     for m in genai.list_models():
         name = m.name.replace('models/', '')
         if 'generateContent' in m.supported_generation_methods and '3.1' in name and 'pro' in name:
             selected_model_name = name
             break
-            
 except Exception as e:
-    # 只有真的抓不到金鑰時，才會在主畫面跳出警告
     st.error("⚠️ 未偵測到 API 金鑰，請確定已在 Streamlit 後台設定 Secrets。")
 
 # ==========================================
@@ -126,8 +121,29 @@ with tab_est:
     # ==========================================
     if not st.session_state.quote_df.empty:
         st.subheader("📋 估價明細表")
-        edited_quote = st.data_editor(st.session_state.quote_df, key="q_editor", num_rows="dynamic", use_container_width=True)
-        edited_quote['Total'] = edited_quote['Qty'].astype(float) * edited_quote['Price'].astype(float)
+        
+        # 顯示可編輯表格，並將 Total 欄位鎖定
+        edited_quote = st.data_editor(
+            st.session_state.quote_df, 
+            key="q_editor", 
+            num_rows="dynamic", 
+            use_container_width=True,
+            column_config={
+                "Total": st.column_config.NumberColumn("Total (自動計算)", disabled=True)
+            }
+        )
+        
+        # 🌟 神經接回：動態偵測變更並自動刷新總價
+        try:
+            new_total = (edited_quote['Qty'].astype(float) * edited_quote['Price'].astype(float)).round(0)
+            if not st.session_state.quote_df['Total'].astype(float).equals(new_total) or len(st.session_state.quote_df) != len(edited_quote):
+                st.session_state.quote_df = edited_quote.copy()
+                st.session_state.quote_df['Total'] = new_total
+                st.rerun() # 一旦修改，立刻刷新畫面連動！
+        except Exception:
+            pass
+            
+        edited_quote['Total'] = (edited_quote['Qty'].astype(float) * edited_quote['Price'].astype(float)).round(0)
         
         st.markdown("---")
         total_val = edited_quote['Total'].sum()
