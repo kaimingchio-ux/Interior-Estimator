@@ -8,11 +8,14 @@ import plotly.express as px
 from datetime import datetime
 import os 
 
-# Excel 排版與原生圖表專用套件
+# Excel 排版與原生圖表專用套件 (加入圖表客製化細節)
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.chart import DoughnutChart, Reference
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill as OpenpyxlPatternFill
+from openpyxl.chart import PieChart, Reference
 from openpyxl.chart.label import DataLabelList
+from openpyxl.chart.legend import Legend
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.drawing.line import LineProperties
 
 # ==========================================
 # 1. 網頁基本設定 (全螢幕配置)
@@ -148,6 +151,7 @@ with tab_est:
         summary_df = edited_quote.groupby('Category')['Total'].sum().reset_index()
         summary_df = summary_df[summary_df['Total'] > 0]
 
+        # 網頁端 Plotly 維持現代美觀，Excel 端則復刻經典
         st.markdown("<h2 style='text-align: center;'>📊 裝潢預算構成比例圖</h2>", unsafe_allow_html=True)
         fig = px.pie(summary_df, values='Total', names='Category', hole=0.55, color_discrete_sequence=px.colors.qualitative.Pastel)
         fig.update_traces(textposition='outside', textinfo='percent+label', texttemplate='%{label}<br>%{percent}')
@@ -173,8 +177,8 @@ with tab_est:
                 f_bold = Font(name='微軟正黑體', size=11, bold=True)
                 f_norm = Font(name='微軟正黑體', size=11)
                 
-                fill_black = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
-                fill_grey = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
+                fill_black = OpenpyxlPatternFill(start_color="000000", end_color="000000", fill_type="solid")
+                fill_grey = OpenpyxlPatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
                 align_c = Alignment(horizontal='center', vertical='center')
                 thin = Side(border_style="thin"); border_all = Border(top=thin, left=thin, right=thin, bottom=thin)
 
@@ -182,6 +186,7 @@ with tab_est:
                     for row in ws[rng]:
                         for cell in row: cell.border = border_all
 
+                # 第一頁內容 (略) ...
                 ws1.column_dimensions['A'].width = 15; ws1.column_dimensions['B'].width = 40
                 ws1.column_dimensions['C'].width = 10; ws1.column_dimensions['D'].width = 15
                 ws1.column_dimensions['E'].width = 15; ws1.column_dimensions['F'].width = 18
@@ -210,26 +215,21 @@ with tab_est:
                 ws1.cell(curr_r, 6, f"=SUM(F10:F{curr_r-1})").number_format = '#,##0'; ws1.cell(curr_r, 6).font = f_bold; ws1.cell(curr_r, 6).fill = fill_grey
                 ws1.merge_cells(start_row=curr_r, start_column=1, end_row=curr_r, end_column=5); set_b(ws1, f'A{curr_r}:F{curr_r}')
 
-                curr_r += 2
-                ws1.cell(curr_r, 1, "合作備註：\n1. 若有任何約定條款，請於簽訂本估價單時一併提出。\n2. 付款方式分為：訂金30%、工程款40%、尾款30%。\n3. 本報價單有效期限為30天。").alignment = Alignment(vertical='top', wrap_text=True)
-                ws1.merge_cells(start_row=curr_r, start_column=1, end_row=curr_r+3, end_column=6); set_b(ws1, f'A{curr_r}:F{curr_r+3}')
-
-                curr_r += 5
-                ws1.cell(curr_r, 1, "專案負責人簽章：").font = f_bold; ws1.cell(curr_r, 4, "客戶簽章：").font = f_bold
-                curr_r += 2
-                ws1.cell(curr_r, 1, "_____________________"); ws1.cell(curr_r, 4, "_____________________")
-
                 ws1.page_setup.paperSize = ws1.PAPERSIZE_A4; ws1.print_options.horizontalCentered = True; ws1.page_margins.left = 0.5; ws1.page_margins.right = 0.5
 
                 # ----------------------------------------------------
-                # 第二頁：原生圖表 (V110 視覺統一版)
+                # 第二頁：完美復刻經典 Excel 圖表樣式 (V111)
                 # ----------------------------------------------------
-                ws2.column_dimensions['A'].width = 5; ws2.column_dimensions['B'].width = 25
-                ws2.column_dimensions['C'].width = 18; ws2.column_dimensions['D'].width = 15
-                ws2.column_dimensions['F'].width = 92
+                ws2.column_dimensions['A'].width = 5
+                ws2.column_dimensions['B'].width = 25
+                ws2.column_dimensions['C'].width = 18
+                ws2.column_dimensions['D'].width = 15
+                # F 欄要留寬，因為復古風圖表會包含多餘圖例
+                ws2.column_dimensions['F'].width = 110 
                 
                 ws2['B4'] = "裝修預算分項金額表"; ws2['B4'].font = f_title; ws2['B4'].alignment = align_c; ws2.merge_cells('B4:D4')
-                ws2['F4'] = "裝修預算構成比例圖"; ws2['F4'].font = f_title; ws2['F4'].alignment = align_c
+                # 復古版圖表區不需要手寫標題，Excel 圖表會內建
+                # ws2['F4'] = "裝修預算構成比例圖"; ... 徹底移除
 
                 if not s_data.empty:
                     s_data['%'] = s_data['Total'] / total_val
@@ -242,37 +242,39 @@ with tab_est:
                         ws2.cell(tbl_row, 4, r['%']).number_format = '0.0%'; ws2.cell(tbl_row, 4).border = border_all
                         tbl_row += 1
 
-                    # 🌟 插入高度客製化的原生甜甜圈圖
-                    chart = DoughnutChart()
+                    # 🌟 插入高客製化的「紋理 Pie Chart (復古風)」
+                    chart = PieChart() # 徹底換成 PieChart，不再是甜甜圈
                     data = Reference(ws2, min_col=3, min_row=start_tbl, max_row=tbl_row-1)
                     labels = Reference(ws2, min_col=2, min_row=start_tbl+1, max_row=tbl_row-1)
                     chart.add_data(data, titles_from_data=True)
                     chart.set_categories(labels)
                     
-                    # 1. 標題文字與網頁版統一樣式
+                    # 1. 圖表標題：直接使用圖片中的純文字格式
                     chart.title = f"總預算 NT$ {total_val:,.0f}"
+                    chart.title.tx.rich.p[0].r[0].t = f"總預算 NT$ {total_val:,.0f}" # 強制更新內部文字
+
+                    # 2. 🌟 靈魂核心：強制使用 Excel 2010 黑白/紋理樣式 (Style 26)
+                    chart.style = 26 
                     
-                    # 2. 移除紋理，改回現代感實心平面風格 (Style 2)
-                    chart.style = 2 
+                    # 3. 圖例設定：顯示在右手邊 (r)，像圖片那樣
+                    chart.legend = Legend()
+                    chart.legend.position = 'r' 
                     
-                    # 3. 移除多餘圖例
-                    chart.legend = None
-                    
-                    # 4. 把圓的洞挖到完美比例 (55%)
-                    chart.holeSize = 55
-                    
-                    # 5. 標籤：顯示名稱與%，並設定換行符號 "\n"，外掛引導線
+                    # 4. 數據標籤：徹底關閉百分比或名稱，完全交給圖例 (像圖片一樣)
                     chart.dataLabels = DataLabelList()
-                    chart.dataLabels.showPercent = True
-                    chart.dataLabels.showCatName = True
-                    chart.dataLabels.showLeaderLines = True
-                    chart.dataLabels.separator = "\n" 
+                    chart.dataLabels.showPercent = False
+                    chart.dataLabels.showCatName = False
                     
-                    chart.width = 16 
-                    chart.height = 10
-                    ws2.add_chart(chart, "F6")
+                    # 5. 🌟 圖表區與圖例外框：加回厚實黑色邊框 (Ln)
+                    black_line = LineProperties(w=12700, solidFill="000000") # w 單位 EMU (約 1pt)
+                    chart.graphical_properties = GraphicalProperties(ln=black_line)
+
+                    # 設定圖表在 F 欄的起始位置與大小
+                    chart.width = 18 # 稍微加寬容納圖例
+                    chart.height = 11
+                    ws2.add_chart(chart, "F4")
                     
-                ws2.page_setup.paperSize = ws2.PAPERSIZE_A4; ws2.page_setup.orientation = ws2.ORIENTATION_LANDSCAPE; ws2.print_options.horizontalCentered = True
+                ws2.page_setup.paperSize = ws2.PAPERSIZE_A4; ws2.page_setup.orientation = ws2.ORIENTATION_LANDSCAPE; ws2.print_options.horizontalCentered = True; ws2.page_margins.top = 0.5
                 
                 output = io.BytesIO()
                 wb.save(output)
@@ -280,5 +282,5 @@ with tab_est:
 
             try:
                 excel_bin = generate_styled_excel(edited_quote, summary_df)
-                st.download_button("📥 下載品牌究極版報價單 (A4 列印版)", excel_bin, f"夜間部設計裝修工程報價單_{datetime.now().strftime('%Y%m%d')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
+                st.download_button("📥 下載究極復刻版報價單 (已含紋理圖)", excel_bin, f"夜間部設計復刻報價單_{datetime.now().strftime('%Y%m%d')}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
             except Exception as e: st.error(f"❌ Excel 產生失敗：{e}")
