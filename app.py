@@ -15,9 +15,13 @@ from openpyxl.chart import DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 
 # ==========================================
-# 1. 網頁基本設定
+# 1. 網頁基本設定 (全螢幕配置)
 # ==========================================
-st.set_page_config(page_title="夜間部設計-室內裝修估價系統", layout="wide")
+st.set_page_config(
+    page_title="夜間部設計-室內裝修估價系統", 
+    layout="wide",
+    initial_sidebar_state="collapsed" # 確保側邊欄預設收起(若有殘留)
+)
 
 LOGO_FILE = "資產 6.png"
 if os.path.exists(LOGO_FILE):
@@ -27,32 +31,27 @@ st.title("夜間部設計-室內裝修估價系統")
 st.markdown("上傳各空間的『現況照』與『參考照』,讓我們系統幫你精準估價!")
 
 # ==========================================
-# 2. 自動讀取 API Key 與 隱藏式鎖定 3.1 Pro
+# 2. 隱形背景作業：自動讀取 API Key 與 鎖定 3.1 Pro
 # ==========================================
-# 預設一個備用名稱，以防萬一
+# 預設一個備用名稱
 selected_model_name = "gemini-3.1-pro-preview" 
+api_key = None
 
-with st.sidebar:
-    st.header("⚙️ 系統設定")
-    try:
-        # 從後台 Secrets 抓取 Key，不需要使用者輸入
-        api_key = st.secrets["GEMINI_API_KEY"]
-        genai.configure(api_key=api_key)
-        
-        # 🌟 背景全自動尋找 3.1 Pro 模型，徹底移除下拉選單！
-        for m in genai.list_models():
-            name = m.name.replace('models/', '')
-            if 'generateContent' in m.supported_generation_methods and '3.1' in name and 'pro' in name:
-                selected_model_name = name
-                break
-        
-        # 顯示專業的連線狀態
-        st.success("✅ 企業版授權已連線")
-        st.info("🚀 系統已自動鎖定最新版 Gemini 3.1 Pro 引擎，準備就緒。")
+try:
+    # 從後台 Secrets 抓取 Key，完全不在畫面上顯示
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+    
+    # 背景全自動尋找 3.1 Pro 模型
+    for m in genai.list_models():
+        name = m.name.replace('models/', '')
+        if 'generateContent' in m.supported_generation_methods and '3.1' in name and 'pro' in name:
+            selected_model_name = name
+            break
             
-    except Exception as e:
-        st.error("⚠️ 未偵測到 API 金鑰，請在後台設定 Secrets。")
-        api_key = None
+except Exception as e:
+    # 只有真的抓不到金鑰時，才會在主畫面跳出警告
+    st.error("⚠️ 未偵測到 API 金鑰，請確定已在 Streamlit 後台設定 Secrets。")
 
 # ==========================================
 # 3. 系統記憶體初始化
@@ -98,7 +97,7 @@ with tab_est:
         if not api_key or not selected_model_name: 
             st.error("⚠️ 系統未正確連線或找不到引擎")
         else:
-            with st.spinner("🧠 引擎極速分析中，請稍候..."):
+            with st.spinner("🧠 系統分析中，請稍候..."):
                 try:
                     db_csv = edited_db.to_csv(index=False)
                     contents = ["設計師估價單。優先參考價格庫：\n"+db_csv, "格式：[{\"Category\": \"工種\", \"Item\": \"項目\", \"Qty\": 1, \"Unit\": \"單位\", \"Price\": 1000}]"]
