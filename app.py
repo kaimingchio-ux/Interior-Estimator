@@ -92,13 +92,34 @@ with tab_est:
         if not api_key or not selected_model_name: 
             st.error("⚠️ 系統未正確連線或找不到引擎")
         else:
-            with st.spinner("🧠 系統分析中，請稍候..."):
+            with st.spinner("🧠 AI 雙軌制估價啟動：比對資料庫與檢索市場均價中..."):
                 try:
                     db_csv = edited_db.to_csv(index=False)
-                    contents = ["設計師估價單。優先參考價格庫：\n"+db_csv, "格式：[{\"Category\": \"工種\", \"Item\": \"項目\", \"Qty\": 1, \"Unit\": \"單位\", \"Price\": 1000}]"]
+                    
+                    # 🌟 核心修改：注入嚴格的「兩步驟報價邏輯」強指令
+                    prompt_logic = f"""
+                    你是一位專業的台灣室內設計估價師。請嚴格依照以下「兩步驟邏輯」來制定報價單的單價：
+
+                    【步驟一：比對專屬價格資料庫 (最優先)】
+                    請仔細檢查下方的「專屬價格資料庫」。如果客戶需求的工項，在資料庫中有相同或類似的項目，請「絕對優先」使用資料庫中設定的單價 (Price)。
+
+                    【步驟二：搜尋合理市場均價】
+                    如果客戶需求的工項「不在」專屬資料庫中，請運用你的知識庫搜尋目前「台灣室內裝修市場的合理平均報價」來作為單價。絕對禁止隨意編造、胡亂猜測極端低價或天價。如果遇到不確定的項目，請填寫最常見的市場行情價，後續會由人工微調。
+
+                    👇 專屬價格資料庫：
+                    {db_csv}
+
+                    請依據客戶提供的空間照片與需求，產出估價單。
+                    【強制輸出格式】：只能回傳合法的 JSON 陣列，不可包含任何說明文字。
+                    格式範例：[{{\"Category\": \"工種\", \"Item\": \"項目\", \"Qty\": 1, \"Unit\": \"單位\", \"Price\": 1000}}]
+                    """
+                    
+                    contents = [prompt_logic]
                     for room in project_data:
                         contents.append(f"空間：{room['name']}\n需求：{room['req']}")
-                        contents.extend(room['before']); contents.extend(room['after'])
+                        if room['before']: contents.extend(room['before'])
+                        if room['after']: contents.extend(room['after'])
+                        
                     model = genai.GenerativeModel(selected_model_name)
                     res = model.generate_content(contents)
                     
@@ -257,11 +278,9 @@ with tab_est:
                     
                     chart.style = 2 
                     chart.holeSize = 60
-                    # 總預算放在標題 (最安全做法)
                     chart.title = f"總預算: NT$ {total_val:,.0f}"
                     chart.legend = None 
                     
-                    # 🌟 極簡安全標籤設定
                     chart.dataLabels = DataLabelList()
                     chart.dataLabels.showCatName = True
                     chart.dataLabels.showPercent = True
