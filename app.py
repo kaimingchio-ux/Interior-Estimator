@@ -55,10 +55,7 @@ if "room_count" not in st.session_state: st.session_state.room_count = 1
 if "quote_df" not in st.session_state: st.session_state.quote_df = pd.DataFrame()
 if "db_df" not in st.session_state:
     st.session_state.db_df = pd.DataFrame([
-        {"Category": "拆除工程", "Item": "隔間牆拆除", "Unit": "坪", "Price": 12000},
-        {"Category": "木作工程", "Item": "平釘天花板", "Unit": "坪", "Price": 4500},
-        {"Category": "油漆工程", "Item": "全室乳膠漆", "Unit": "坪", "Price": 1800}
-    ])
+        {"Category": "木作工程", "Item": "平釘天花板", "Unit": "坪", "Price": 3200}])
 
 # ==========================================
 # 4. 頁籤切換
